@@ -1,0 +1,18 @@
+import { Result } from "./result";
+export declare function looksLikeJSON(text: string): boolean;
+export declare function parseJSON(text: string): Result<unknown>;
+export declare function readJSON(text: string): Result<unknown>;
+export declare function readLooseJSON(text: string): Result<unknown>;
+export declare function cutHint(text: string): "" | " A ] ends an argument early: put a backslash before it, two in a command file, or build the value with $arrayOf.";
+export declare function parseValue(text: string): unknown;
+export declare function parseScalar(text: string): unknown;
+export declare function stringify(value: unknown, indent?: number): string;
+export declare function toText(value: unknown): string | undefined;
+export declare function joinTexts(values: readonly unknown[], separator: string): string;
+export declare function typeOf(value: unknown): "string" | "number" | "bigint" | "boolean" | "symbol" | "undefined" | "object" | "function" | "array" | "null";
+export declare function describe(value: unknown): string;
+export declare function numberOf(value: unknown): number | undefined;
+export declare function tidy(value: number): number;
+export declare function shorten(text: string): string;
+export declare function preview(text: string): string;
+//# sourceMappingURL=value.d.ts.map
