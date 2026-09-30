@@ -37,6 +37,14 @@ const REPLACED = [
     "$arrayFindLast",
     "$arrayFindLastIndex",
     "$arrayReduce",
+    "$arrayLastIndexOf",
+    "$arrayPushJSON",
+    "$arrayUnshiftJSON",
+    "$arraySplice",
+    "$arraySort",
+    "$arrayFill",
+    "$arrayRandomIndex",
+    "$jsonEntries",
 ];
 (0, node_test_1.describe)("ForgeScript's own functions", () => {
     (0, node_test_1.it)("are replaced by ForgeJSON's where the names match", () => {
@@ -90,6 +98,16 @@ const REPLACED = [
     });
     (0, node_test_1.it)("finds with a condition over $env", async () => {
         strict_1.default.equal(await (0, harness_1.output)("$arrayLoad[a;,;1,2,3]$arrayFind[a;x;$env[x]>1] $arrayFindIndex[a;x;$env[x]==3]"), "2 2");
+    });
+    (0, node_test_1.it)("pushes JSON, splices, sorts into another variable and finds the last match", async () => {
+        const env = {};
+        const said = await (0, harness_1.output)(`$arrayLoad[a;,;3,1,3]$arrayPushJSON[a;{"x":1}]$arraySplice[a;0;1]$arraySort[a;sorted;desc]$arrayLastIndexOf[a;3]`, env);
+        strict_1.default.equal(said, "[3]1");
+        strict_1.default.deepEqual(env.a, [1, 3, { x: 1 }]);
+        strict_1.default.deepEqual(env.sorted, [{ x: 1 }, 3, 1]);
+    });
+    (0, node_test_1.it)("lists the entries of a variable", async () => {
+        strict_1.default.equal(await (0, harness_1.output)("$jsonEntries[o]", { o: { a: 1, b: 2 } }), '[["a",1],["b",2]]');
     });
     (0, node_test_1.it)("loops with $letSum", async () => {
         strict_1.default.equal(await (0, harness_1.output)("$arrayLoad[a;,;1,2,3]$let[s;0]$arrayForEach[a;x;$letSum[s;$env[x]]]$get[s]"), "6");

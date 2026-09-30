@@ -21,6 +21,11 @@ const polluted = () => ({});
             "$objectMerge[d;__proto__;{}]",
             "$jsonLoad[__proto__;{}]",
             "$arrayPush[__proto__;yes]",
+            "$arrayPushJSON[__proto__;1]",
+            "$arraySplice[__proto__;0;0;yes]",
+            "$arrayFill[__proto__;1]",
+            "$arraySort[list;__proto__]",
+            "$jsonEntries[d;__proto__]",
             "$jsonGet[d;__proto__;polluted]",
         ]) {
             const run = await harness_1.bot.run(code, { d: {} });
@@ -37,9 +42,11 @@ const polluted = () => ({});
         const env = {};
         await (0, harness_1.output)(`$jsonLoad[evil;{"__proto__":{"polluted":"yes"},"a":{"__proto__":{"polluted":"yes"}}}]`, env);
         await (0, harness_1.output)("$objectMerge[target;evil]$objectDefaults[other;evil]$jsonSet[copy;$jsonGet[evil]]", env);
+        await (0, harness_1.output)("$arrayCreate[slots;1]$arrayFill[slots;$jsonGet[evil]]", env);
         strict_1.default.equal(polluted().polluted, undefined);
         strict_1.default.equal(Object.getPrototypeOf(env.target), Object.prototype, "the merge target kept its prototype");
         strict_1.default.deepEqual(env.target, { a: {} }, "the key was dropped, not followed");
+        strict_1.default.deepEqual(env.slots, [{ a: {} }], "$arrayFill dropped the key");
     });
     (0, node_test_1.it)("stays out of reach of loosely written JSON that names it", async () => {
         const env = {};
@@ -74,7 +81,8 @@ const polluted = () => ({});
     (0, node_test_1.it)("stays exact through every way in", async () => {
         const env = {};
         await (0, harness_1.output)(`$jsonSet[a;${id}]$arrayPush[b;${id}]$jsonLoad[c;{"id":${id}}]$jsonLoad[d;$arrayOf[${id}]]$jsonLoad[e;$objectOf[id;${id}]]`, env);
-        strict_1.default.deepEqual(env, { a: id, b: [id], c: { id }, d: [id], e: { id } });
+        await (0, harness_1.output)(`$arrayPushJSON[f;${id}]$arrayUnshiftJSON[g;{"id":${id}}]$arrayCreate[h;1]$arrayFill[h;${id}]$arraySplice[i;0;0;${id}]`, env);
+        strict_1.default.deepEqual(env, { a: id, b: [id], c: { id }, d: [id], e: { id }, f: [id], g: [{ id }], h: [id], i: [id] });
     });
     (0, node_test_1.it)("is found again by every lookup", async () => {
         const env = { users: [{ id }, { id: "123456789012345679" }] };

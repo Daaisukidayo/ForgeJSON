@@ -19,6 +19,11 @@ describe("the prototype", () => {
             "$objectMerge[d;__proto__;{}]",
             "$jsonLoad[__proto__;{}]",
             "$arrayPush[__proto__;yes]",
+            "$arrayPushJSON[__proto__;1]",
+            "$arraySplice[__proto__;0;0;yes]",
+            "$arrayFill[__proto__;1]",
+            "$arraySort[list;__proto__]",
+            "$jsonEntries[d;__proto__]",
             "$jsonGet[d;__proto__;polluted]",
         ]) {
             const run = await bot.run(code, { d: {} })
@@ -38,10 +43,12 @@ describe("the prototype", () => {
         const env: Record<string, unknown> = {}
         await output(`$jsonLoad[evil;{"__proto__":{"polluted":"yes"},"a":{"__proto__":{"polluted":"yes"}}}]`, env)
         await output("$objectMerge[target;evil]$objectDefaults[other;evil]$jsonSet[copy;$jsonGet[evil]]", env)
+        await output("$arrayCreate[slots;1]$arrayFill[slots;$jsonGet[evil]]", env)
 
         assert.equal(polluted().polluted, undefined)
         assert.equal(Object.getPrototypeOf(env.target), Object.prototype, "the merge target kept its prototype")
         assert.deepEqual(env.target, { a: {} }, "the key was dropped, not followed")
+        assert.deepEqual(env.slots, [{ a: {} }], "$arrayFill dropped the key")
     })
 
     it("stays out of reach of loosely written JSON that names it", async () => {
@@ -90,7 +97,12 @@ describe("a Discord ID", () => {
             env
         )
 
-        assert.deepEqual(env, { a: id, b: [id], c: { id }, d: [id], e: { id } })
+        await output(
+            `$arrayPushJSON[f;${id}]$arrayUnshiftJSON[g;{"id":${id}}]$arrayCreate[h;1]$arrayFill[h;${id}]$arraySplice[i;0;0;${id}]`,
+            env
+        )
+
+        assert.deepEqual(env, { a: id, b: [id], c: { id }, d: [id], e: { id }, f: [id], g: [{ id }], h: [id], i: [id] })
     })
 
     it("is found again by every lookup", async () => {

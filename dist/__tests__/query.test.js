@@ -41,6 +41,23 @@ const ids = (list) => list.map((user) => user.id);
         strict_1.default.deepEqual(ids(await (0, harness_1.json)("$arraySortBy[users;;name]", users())), ["111", "222", "333", "444"]);
     });
 });
+(0, node_test_1.describe)("$arraySort", () => {
+    (0, node_test_1.it)("sorts numbers as numbers and text the way people expect, asc and desc the right way round", async () => {
+        const env = { list: [10, 9, 1] };
+        strict_1.default.equal(await (0, harness_1.output)("$arraySort[list;;desc]", env), "[10,9,1]");
+        strict_1.default.equal(await (0, harness_1.output)("$arraySort[list;;asc]", env), "[1,9,10]");
+        strict_1.default.equal(await (0, harness_1.output)(String.raw `$arraySort[["b","A","c"\]]`), '["A","b","c"]');
+    });
+    (0, node_test_1.it)("sorts a variable in place, or loads a sorted copy to another variable", async () => {
+        const env = { list: [3, 1, 2] };
+        strict_1.default.equal(await (0, harness_1.output)("$arraySort[list;sorted;desc]", env), "");
+        strict_1.default.deepEqual(env.list, [3, 1, 2]);
+        strict_1.default.deepEqual(env.sorted, [3, 2, 1]);
+        await (0, harness_1.output)("$arraySort[list]", env);
+        strict_1.default.deepEqual(env.list, [1, 2, 3]);
+        strict_1.default.notEqual(env.list, env.sorted);
+    });
+});
 (0, node_test_1.describe)("a condition over every element", () => {
     (0, node_test_1.it)("compares numbers, however they are stored", async () => {
         strict_1.default.deepEqual(ids(await (0, harness_1.json)("$arrayFilter[users;u;$jsonGet[u;xp]>=100]", users())), ["222", "444"]);

@@ -27,6 +27,21 @@ const harness_1 = require("./support/harness");
         strict_1.default.match(await (0, harness_1.failure)("$arrayPush[d;x]", { d: {} }), /is an object, not an array/);
     });
 });
+(0, node_test_1.describe)("$arrayPushJSON and $arrayUnshiftJSON", () => {
+    (0, node_test_1.it)("add JSON values, creating the array and keeping IDs exact", async () => {
+        const env = {};
+        await (0, harness_1.output)(String.raw `$arrayPushJSON[list;{"id":123456789012345678};[1,2\]]$arrayUnshiftJSON[list;123456789012345678;null]`, env);
+        strict_1.default.deepEqual(env.list, ["123456789012345678", null, { id: "123456789012345678" }, [1, 2]]);
+    });
+    (0, node_test_1.it)("refuse JSON that doesn't parse, adding nothing", async () => {
+        const env = { list: [] };
+        strict_1.default.match(await (0, harness_1.failure)("$arrayPushJSON[list;1;{a:1}]", env), /not valid JSON/);
+        strict_1.default.deepEqual(env.list, []);
+    });
+    (0, node_test_1.it)("refuse what isn't an array", async () => {
+        strict_1.default.match(await (0, harness_1.failure)("$arrayUnshiftJSON[d;1]", { d: {} }), /is an object, not an array/);
+    });
+});
 (0, node_test_1.describe)("$arrayPop and $arrayShift", () => {
     (0, node_test_1.it)("remove and return an element", async () => {
         const env = { queue: [{ id: 1 }, 2, 3] };
@@ -45,6 +60,27 @@ const harness_1 = require("./support/harness");
         strict_1.default.deepEqual(list, ["5", 6, "x"], "the text 5 is not the number 5");
         await (0, harness_1.output)(`$arrayRemove[list;"5"]`, { list });
         strict_1.default.deepEqual(list, [6, "x"]);
+    });
+    (0, node_test_1.it)("leaves a missing variable missing", async () => {
+        const env = {};
+        strict_1.default.equal(await (0, harness_1.output)("$arrayRemove[list;5]", env), "");
+        strict_1.default.deepEqual(env, {});
+    });
+});
+(0, node_test_1.describe)("$arraySplice", () => {
+    (0, node_test_1.it)("removes and inserts, typing what it inserts, and returns what it removed", async () => {
+        const env = { list: ["a", "b", "c"] };
+        strict_1.default.equal(await (0, harness_1.output)("$arraySplice[list;1;1;5;true]", env), '["b"]');
+        strict_1.default.deepEqual(env.list, ["a", 5, true, "c"]);
+    });
+    (0, node_test_1.it)("counts a negative index from the end, and creates a missing array", async () => {
+        const env = { list: [1, 2, 3] };
+        strict_1.default.equal(await (0, harness_1.output)("$arraySplice[list;-1;1]", env), "[3]");
+        strict_1.default.equal(await (0, harness_1.output)("$arraySplice[added;0;0;x]", env), "[]");
+        strict_1.default.deepEqual(env, { list: [1, 2], added: ["x"] });
+    });
+    (0, node_test_1.it)("refuses what isn't an array", async () => {
+        strict_1.default.match(await (0, harness_1.failure)("$arraySplice[d;0;1]", { d: "text" }), /is a string, not an array/);
     });
 });
 (0, node_test_1.describe)("$arraySlice, $arrayReverse and $arrayJoin", () => {
@@ -76,7 +112,12 @@ const harness_1 = require("./support/harness");
         strict_1.default.equal(await (0, harness_1.output)("$arrayJoin[list;]", { list: [1, 2] }), "12", "an empty separator joins without one");
     });
 });
-(0, node_test_1.describe)("$arrayIncludes and $arrayIndexOf", () => {
+(0, node_test_1.describe)("$arrayIncludes, $arrayIndexOf and $arrayLastIndexOf", () => {
+    (0, node_test_1.it)("find the last match the same way, in JSON too", async () => {
+        const env = { list: [5, "5", 5] };
+        strict_1.default.equal(await (0, harness_1.output)(`$arrayLastIndexOf[list;5] $arrayLastIndexOf[list;"5"] $arrayLastIndexOf[list;6]`, env), "2 1 -1");
+        strict_1.default.equal(await (0, harness_1.output)(String.raw `$arrayLastIndexOf[[{"a":1},{"a":1}\];{"a":1}]`), "1");
+    });
     (0, node_test_1.it)("tell a number from the same number as text", async () => {
         const env = { number: [5], text: ["5"] };
         strict_1.default.equal(await (0, harness_1.output)(`$arrayIncludes[number;5] $arrayIncludes[number;"5"]`, env), "true false");
@@ -151,6 +192,35 @@ const harness_1 = require("./support/harness");
             if ((await (0, harness_1.json)("$arrayWeightedRandom[table;chance]", env)).item === "b")
                 b++;
         strict_1.default.ok(b > 1300 && b < 1700, `b came up ${b} times in 2000`);
+    });
+});
+(0, node_test_1.describe)("$arrayRandomIndex", () => {
+    (0, node_test_1.it)("picks an index of the array, and nothing from an empty one", async () => {
+        for (let i = 0; i < 20; i++) {
+            const index = await (0, harness_1.output)("$arrayRandomIndex[list]", { list: ["a", "b", "c"] });
+            strict_1.default.ok(["0", "1", "2"].includes(index ?? ""), `picked ${index}`);
+        }
+        strict_1.default.equal(await (0, harness_1.output)("[$arrayRandomIndex[list]]", { list: [] }), "[]");
+        strict_1.default.equal(await (0, harness_1.output)(String.raw `$arrayRandomIndex[["x"\]]`), "0");
+    });
+});
+(0, node_test_1.describe)("$arrayFill", () => {
+    (0, node_test_1.it)("gives every element its own copy of the value", async () => {
+        const env = {};
+        await (0, harness_1.output)(`$arrayCreate[slots;3]$arrayFill[slots;{"item":null}]$jsonSet[slots;0;item;sword]`, env);
+        strict_1.default.deepEqual(env.slots, [{ item: "sword" }, { item: null }, { item: null }]);
+    });
+    (0, node_test_1.it)("keeps IDs exact and refuses JSON that doesn't parse", async () => {
+        const env = { ids: [0, 0] };
+        await (0, harness_1.output)("$arrayFill[ids;123456789012345678]", env);
+        strict_1.default.deepEqual(env.ids, ["123456789012345678", "123456789012345678"]);
+        strict_1.default.match(await (0, harness_1.failure)("$arrayFill[ids;{a:1}]", env), /not valid JSON/);
+    });
+    (0, node_test_1.it)("leaves a missing variable missing, and refuses what isn't an array", async () => {
+        const env = { text: "x" };
+        strict_1.default.equal(await (0, harness_1.output)("$arrayFill[slots;0]", env), "");
+        strict_1.default.deepEqual(env, { text: "x" });
+        strict_1.default.match(await (0, harness_1.failure)("$arrayFill[text;0]", env), /is a string, not an array/);
     });
 });
 (0, node_test_1.describe)("$arrayFlat, $arrayUnique and the set functions", () => {

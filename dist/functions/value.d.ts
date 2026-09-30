@@ -2,6 +2,8 @@ import { Result } from "./result";
 export declare function looksLikeJSON(text: string): boolean;
 export declare function parseJSON(text: string): Result<unknown>;
 export declare function readJSON(text: string): Result<unknown>;
+export declare function readValue(text: string): Result<unknown>;
+export declare function readValues(texts: readonly string[]): Result<unknown[]>;
 export declare function readLooseJSON(text: string): Result<unknown>;
 export declare function cutHint(text: string): "" | " A ] ends an argument early: put a backslash before it, two in a command file, or build the value with $arrayOf.";
 export declare function parseValue(text: string): unknown;

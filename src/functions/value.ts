@@ -38,6 +38,25 @@ export function readJSON(text: string): Result<unknown> {
     return fail(`${preview(text)} is not valid JSON: ${parsed.reason}.${cutHint(text)}${loose}`)
 }
 
+export function readValue(text: string): Result<unknown> {
+    if (looksLikeJSON(text)) return readJSON(text)
+
+    return ok(text === "null" ? null : parseScalar(text))
+}
+
+export function readValues(texts: readonly string[]): Result<unknown[]> {
+    const values: unknown[] = []
+
+    for (const text of texts) {
+        const read = readValue(text)
+        if (!read.ok) return read
+
+        values.push(read.value)
+    }
+
+    return ok(values)
+}
+
 export function readLooseJSON(text: string): Result<unknown> {
     const parsed = parseJSON(text)
     if (parsed.ok) return parsed

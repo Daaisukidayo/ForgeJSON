@@ -1,6 +1,6 @@
 {
   "name": "forge.json",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Better and new $json and $array functions for ForgeScript.",
   "main": "dist/index.js",
   "files": [
@@ -47,7 +47,7 @@
     "node": ">=22.0.0"
   },
   "peerDependencies": {
-    "@tryforge/forgescript": ">=2.7.0"
+    "@tryforge/forgescript": ">=2.4.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

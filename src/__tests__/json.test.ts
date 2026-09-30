@@ -292,6 +292,24 @@ describe("$jsonKeys and $jsonValues", () => {
     })
 })
 
+describe("$jsonEntries", () => {
+    const env = { d: { a: 1, inv: { Sword: { count: 2 } } } }
+
+    it("lists key and value pairs as JSON, following keys like $env", async () => {
+        assert.deepEqual(await json("$jsonEntries[d;inv]", env), [["Sword", { count: 2 }]])
+        assert.deepEqual(await json(String.raw`$jsonEntries[["x"\]]`), [["0", "x"]])
+        assert.deepEqual(await json("$jsonEntries[missing]"), [])
+    })
+
+    it("hands $arrayFormat an inventory", async () => {
+        assert.equal(await output("$arrayFormat[$jsonEntries[d;inv];{0} x{1.count}]", env), "Sword x2")
+    })
+
+    it("refuses what has no entries", async () => {
+        assert.match(await failure("$jsonEntries[d;a]", env), /has no entries/)
+    })
+})
+
 describe("$jsonStringify", () => {
     it("writes compact JSON, or laid out with spaces", async () => {
         const env = { d: { a: [1] } }

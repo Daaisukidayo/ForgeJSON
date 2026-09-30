@@ -3,6 +3,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.looksLikeJSON = looksLikeJSON;
 exports.parseJSON = parseJSON;
 exports.readJSON = readJSON;
+exports.readValue = readValue;
+exports.readValues = readValues;
 exports.readLooseJSON = readLooseJSON;
 exports.cutHint = cutHint;
 exports.parseValue = parseValue;
@@ -46,6 +48,21 @@ function readJSON(text) {
         ? " It is written the JavaScript way: put the keys and text in double quotes, or turn it into JSON with $jsonStringify."
         : "";
     return (0, result_1.fail)(`${preview(text)} is not valid JSON: ${parsed.reason}.${cutHint(text)}${loose}`);
+}
+function readValue(text) {
+    if (looksLikeJSON(text))
+        return readJSON(text);
+    return (0, result_1.ok)(text === "null" ? null : parseScalar(text));
+}
+function readValues(texts) {
+    const values = [];
+    for (const text of texts) {
+        const read = readValue(text);
+        if (!read.ok)
+            return read;
+        values.push(read.value);
+    }
+    return (0, result_1.ok)(values);
 }
 function readLooseJSON(text) {
     const parsed = parseJSON(text);

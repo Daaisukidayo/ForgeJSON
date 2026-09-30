@@ -45,6 +45,28 @@ describe("$arraySortBy", () => {
     })
 })
 
+describe("$arraySort", () => {
+    it("sorts numbers as numbers and text the way people expect, asc and desc the right way round", async () => {
+        const env = { list: [10, 9, 1] }
+
+        assert.equal(await output("$arraySort[list;;desc]", env), "[10,9,1]")
+        assert.equal(await output("$arraySort[list;;asc]", env), "[1,9,10]")
+        assert.equal(await output(String.raw`$arraySort[["b","A","c"\]]`), '["A","b","c"]')
+    })
+
+    it("sorts a variable in place, or loads a sorted copy to another variable", async () => {
+        const env: Record<string, unknown> = { list: [3, 1, 2] }
+
+        assert.equal(await output("$arraySort[list;sorted;desc]", env), "")
+        assert.deepEqual(env.list, [3, 1, 2])
+        assert.deepEqual(env.sorted, [3, 2, 1])
+
+        await output("$arraySort[list]", env)
+        assert.deepEqual(env.list, [1, 2, 3])
+        assert.notEqual(env.list, env.sorted)
+    })
+})
+
 describe("a condition over every element", () => {
     it("compares numbers, however they are stored", async () => {
         assert.deepEqual(ids(await json("$arrayFilter[users;u;$jsonGet[u;xp]>=100]", users())), ["222", "444"])

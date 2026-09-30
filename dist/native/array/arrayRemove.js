@@ -15,9 +15,11 @@ exports.default = new forgescript_1.NativeFunction({
         forgescript_1.Arg.restString("values", "The values to remove", true),
     ],
     execute(ctx, [variable, values]) {
-        const list = new Location_1.Location(ctx, variable).array();
+        const list = new Location_1.Location(ctx, variable).array({ create: false });
         if (!list.ok)
             return this.customError(list.reason);
+        if (!list.value)
+            return this.success();
         const wanted = values.map(value_1.parseValue);
         const kept = list.value.filter((item) => !wanted.some((value) => (0, compare_1.isEqual)(item, value)));
         list.value.length = 0;

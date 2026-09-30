@@ -52,7 +52,7 @@ Writing creates the missing levels as objects. Nothing is ever written past the 
 
 <h4 align="center">Values</h4>
 
-`$jsonSet`, `$arrayPushAt`, `$arrayPush`, `$arrayOf`, `$objectOf` and lookups like `$arrayIncludes` read values like this:
+`$jsonSet`, `$arrayPush`, `$arrayPushAt`, `$arraySplice`, `$arrayOf`, `$objectOf` and lookups like `$arrayIncludes` read values like this:
 
 | You write | You get |
 |---|---|
@@ -64,7 +64,7 @@ Writing creates the missing levels as objects. Nothing is ever written past the 
 | `"123"` | text, without the quotes |
 | anything else | text |
 
-[`$arrayLoad`](#arrayload) reads the same way but keeps `null` and JSON as text, and [`$jsonLoad`](#jsonload) refuses JSON that doesn't parse. Lookups go by type: `$arrayIncludes[list;5]` looks for the number, `$arrayIncludes[list;"5"]` for the text.
+[`$arrayLoad`](#arrayload) reads the same way but keeps `null` and JSON as text. [`$jsonLoad`](#jsonload), [`$arrayPushJSON`](#arraypushjson), [`$arrayUnshiftJSON`](#arrayunshiftjson) and [`$arrayFill`](#arrayfill) refuse an object or array that doesn't parse. Lookups go by type: `$arrayIncludes[list;5]` looks for the number, `$arrayIncludes[list;"5"]` for the text.
 
 <h4 align="center">Output</h4>
 
@@ -132,6 +132,7 @@ $jsonGet[config;prefix]    // → !
 | **[`$jsonSize`](#jsonsize)** | number | How big it is. |
 | **[`$jsonKeys`](#jsonkeys)** ↺ | JSON array | The keys of an object, or indices of an array. |
 | **[`$jsonValues`](#jsonvalues)** ↺ | text | The values of an object, or elements of an array, joined. |
+| **[`$jsonEntries`](#jsonentries)** ↺ | JSON array | Key and value pairs. |
 | **[`$jsonEquals`](#jsonequals)** | boolean | Whether two values hold the same data. |
 | **[`$jsonMath`](#jsonmath)** | — | Adds to, multiplies or divides a number. |
 | **[`$jsonToggle`](#jsontoggle)** | — | Flips a boolean. |
@@ -324,6 +325,25 @@ $jsonValues[user; | ]      // → Ann | 120 | {"level":2}
 
 **Changed:** it reads JSON as well as a variable.
 
+<h4 align="center">$jsonEntries</h4>
+
+**`$jsonEntries[source;keys...]`** ↺ - returns a JSON array
+
+Key and value pairs of an object, or index and element pairs of an array. In [`$arrayFormat`](#arrayformat), `{0}` stands for the key and `{1}` for the value.
+
+| Argument | Needed | What it is |
+|---|---|---|
+| **`source`** | required | A variable, or JSON. |
+| **`keys`** | any number | The keys to follow. |
+
+```js
+$jsonLoad[profile;{"inventory":{"Sword":{"count":2},"Bow":{"count":1}}}]
+$jsonEntries[profile;inventory]                                // → [["Sword",{"count":2}],["Bow",{"count":1}]]
+$arrayFormat[$jsonEntries[profile;inventory];{0} x{1.count};;;, ]    // → Sword x2, Bow x1
+```
+
+**Changed:** it follows keys and reads JSON. The JSON is compact, and a missing variable gives `[]` instead of nothing.
+
 <h4 align="center">$jsonEquals</h4>
 
 **`$jsonEquals[first;second]`** - returns a boolean
@@ -418,7 +438,7 @@ $jsonStringify[{ a: yes }]                            // → error
 | **[`$objectOf`](#objectof)** | JSON object | Builds an object. |
 | **[`$objectPick`](#objectpick)** | JSON object | Keeps only some keys. |
 | **[`$objectOmit`](#objectomit)** | JSON object | Leaves some keys out. |
-| **[`$objectMerge`](#objectmerge)** | — | Merges an object in. |
+| **[`$objectMerge`](#objectmerge)** | — | Merges objects in. |
 | **[`$objectDefaults`](#objectdefaults)** | — | Fills in missing keys. |
 
 <h4 align="center">$objectOf</h4>
@@ -471,15 +491,15 @@ $objectOmit[user;token]    // → {"id":"1","name":"Ann"}
 
 <h4 align="center">$objectMerge</h4>
 
-**`$objectMerge[variable;keys...;source]`** - returns nothing
+**`$objectMerge[variable;keys...;sources...]`** - returns nothing
 
-Merges an object into the one under the keys, level by level, creating it when missing. Arrays and other values are replaced, not joined.
+Merges objects into the one under the keys, level by level and in order, creating it when missing. Arrays and other values are replaced, not joined.
 
 | Argument | Needed | What it is |
 |---|---|---|
 | **`variable`** | required | The variable holding the object. |
 | **`keys`** | any number | The keys to follow. |
-| **`source`** | required, last | The object to merge in, as a variable or JSON. |
+| **`sources`** | at least one, last | The objects to merge in. The last one can be a variable or JSON, and the ones before it are JSON, starting with `{`, so a variable goes there as `$env[name]`. |
 
 ```js
 $jsonLoad[config;{"colors":{"main":"red","text":"white"},"tags":[1,2\]}]
@@ -487,6 +507,8 @@ $objectMerge[config;{"colors":{"main":"blue"},"tags":[9\]}]
 $jsonGet[config]                            // → {"colors":{"main":"blue","text":"white"},"tags":[9]}
 $objectMerge[config;colors;{"link":"green"}]
 $jsonGet[config;colors]                     // → {"main":"blue","text":"white","link":"green"}
+$objectMerge[copy;$env[config];{"tags":[\]}]
+$jsonGet[copy]                              // → {"colors":{"main":"blue","text":"white","link":"green"},"tags":[]}
 ```
 
 <h4 align="center">$objectDefaults</h4>
@@ -514,21 +536,27 @@ $jsonGet[profile]    // → {"coins":50,"xp":0,"inventory":{}}
 | **[`$arrayOf`](#arrayof)** | JSON array | Builds an array. |
 | **[`$arrayLoad`](#arrayload)** ↺ | — | Splits text into an array. |
 | **[`$arrayPush`](#arraypush)** ↺ | — | Adds to the end. |
+| **[`$arrayPushJSON`](#arraypushjson)** ↺ | — | Adds JSON to the end. |
 | **[`$arrayPushAt`](#arraypushat)** | — | Adds to the end of an array inside a variable. |
 | **[`$arrayUnshift`](#arrayunshift)** ↺ | — | Adds to the start. |
+| **[`$arrayUnshiftJSON`](#arrayunshiftjson)** ↺ | — | Adds JSON to the start. |
 | **[`$arrayPop`](#arraypop)** ↺ | value | Takes the last element off. |
 | **[`$arrayShift`](#arrayshift)** ↺ | value | Takes the first element off. |
 | **[`$arrayRemove`](#arrayremove)** | — | Removes elements by value. |
+| **[`$arraySplice`](#arraysplice)** ↺ | JSON array | Removes and inserts at an index. |
 | **[`$arraySlice`](#arrayslice)** ↺ | JSON array | Part of an array. |
 | **[`$arrayReverse`](#arrayreverse)** ↺ | JSON array | The array backwards. |
 | **[`$arrayJoin`](#arrayjoin)** ↺ | text | The elements joined. |
 | **[`$arrayIncludes`](#arrayincludes)** ↺ | boolean | Whether it holds a value. |
 | **[`$arrayIndexOf`](#arrayindexof)** ↺ | number | Where a value is. |
+| **[`$arrayLastIndexOf`](#arraylastindexof)** ↺ | number | Where a value last is. |
 | **[`$arrayRange`](#arrayrange)** | JSON array | A run of numbers. |
+| **[`$arrayFill`](#arrayfill)** ↺ | — | Sets every element to a value. |
 | **[`$arrayChunk`](#arraychunk)** | JSON array | The array cut into pieces. |
 | **[`$arrayPage`](#arraypage)** | JSON array | One page of it. |
 | **[`$arrayPageCount`](#arraypagecount)** | number | How many pages. |
 | **[`$arraySample`](#arraysample)** | value, or JSON array | Random elements. |
+| **[`$arrayRandomIndex`](#arrayrandomindex)** ↺ | number | A random index. |
 | **[`$arrayShuffle`](#arrayshuffle)** ↺ | —, or JSON array | The array in random order. |
 | **[`$arrayWeightedRandom`](#arrayweightedrandom)** | value | A random element by weight. |
 | **[`$arrayFlat`](#arrayflat)** | JSON array | Arrays inside opened up. |
@@ -536,6 +564,7 @@ $jsonGet[profile]    // → {"coins":50,"xp":0,"inventory":{}}
 | **[`$arrayUnion`](#arrayunion)** | JSON array | Elements of any of the arrays. |
 | **[`$arrayIntersect`](#arrayintersect)** | JSON array | Elements of both. |
 | **[`$arrayDiff`](#arraydiff)** | JSON array | Elements of the first only. |
+| **[`$arraySort`](#arraysort)** ↺ | JSON array | The array sorted. |
 | **[`$arraySortBy`](#arraysortby)** | JSON array | Sorted by a key. |
 | **[`$arrayPluck`](#arraypluck)** | JSON array | One key of every element. |
 | **[`$arrayGroupBy`](#arraygroupby)** | JSON object | Elements grouped by a key. |
@@ -556,7 +585,7 @@ $jsonGet[profile]    // → {"coins":50,"xp":0,"inventory":{}}
 | **[`$arrayReduce`](#arrayreduce)** ↺ | value | A value carried through every element. |
 | **[`$arrayForEach`](#arrayforeach)** ↺ | — | Runs code for every element. |
 
-Functions that read an array leave it as it is, except [`$arrayShuffle`](#arrayshuffle) and [`$arrayReverse`](#arrayreverse) without an other variable.
+Functions that read an array leave it as it is, except [`$arrayShuffle`](#arrayshuffle), and [`$arrayReverse`](#arrayreverse) and [`$arraySort`](#arraysort) without an other variable.
 
 <h4 align="center">$arrayOf</h4>
 
@@ -616,6 +645,25 @@ For an array deeper inside a variable, use [`$arrayPushAt`](#arraypushat).
 
 **Changed:** the array is created when missing, where the old one did nothing. Numbers and booleans are no longer stored as text. A variable holding something other than an array is an error.
 
+<h4 align="center">$arrayPushJSON</h4>
+
+**`$arrayPushJSON[variable;values...]`** ↺ - returns nothing
+
+Adds values to the end of an array, as [`$arrayPush`](#arraypush) does, except that an object or array that doesn't parse is an error, and then nothing is added.
+
+| Argument | Needed | What it is |
+|---|---|---|
+| **`variable`** | required | The variable holding the array. |
+| **`values`** | at least one | The JSON values to add. |
+
+```js
+$arrayPushJSON[users;{"id":123456789012345678,"xp":0}]
+$jsonGet[users;0;id]            // → 123456789012345678
+$arrayPushJSON[users;{id:1}]    // → error
+```
+
+**Changed:** long IDs keep their digits. The array is created when missing, and anything other than an array is an error. An object or array that doesn't parse is an error instead of being stored as text.
+
 <h4 align="center">$arrayPushAt</h4>
 
 **`$arrayPushAt[variable;keys...;value]`** - returns nothing
@@ -652,6 +700,25 @@ $jsonGet[queue]    // → ["a","b","c","d"]
 ```
 
 **Changed:** as for [`$arrayPush`](#arraypush).
+
+<h4 align="center">$arrayUnshiftJSON</h4>
+
+**`$arrayUnshiftJSON[variable;values...]`** ↺ - returns nothing
+
+Adds values to the start of an array, in order, the way [`$arrayPushJSON`](#arraypushjson) adds them to the end.
+
+| Argument | Needed | What it is |
+|---|---|---|
+| **`variable`** | required | The variable holding the array. |
+| **`values`** | at least one | The JSON values to add. |
+
+```js
+$arrayPushJSON[queue;{"id":3}]
+$arrayUnshiftJSON[queue;{"id":1};{"id":2}]
+$arrayPluck[queue;id]    // → [1,2,3]
+```
+
+**Changed:** as for [`$arrayPushJSON`](#arraypushjson).
 
 <h4 align="center">$arrayPop</h4>
 
@@ -707,6 +774,28 @@ $jsonGet[list]    // → ["5",6]
 $arrayRemove[list;"5"]
 $jsonGet[list]    // → [6]
 ```
+
+<h4 align="center">$arraySplice</h4>
+
+**`$arraySplice[variable;index;delete count;elements...]`** ↺ - returns the removed elements as a JSON array
+
+Removes `delete count` elements from `index` on and inserts the elements in their place. A negative index counts from the end.
+
+| Argument | Needed | What it is |
+|---|---|---|
+| **`variable`** | required | The variable holding the array. |
+| **`index`** | required | The index to start at. |
+| **`delete count`** | required | How many elements to remove, 0 to only insert. |
+| **`elements`** | any number | The elements to insert. |
+
+```js
+$jsonLoad[list;["a","b","c"\]]
+$arraySplice[list;1;1;5;true]    // → ["b"]
+$jsonGet[list]                   // → ["a",5,true,"c"]
+$arraySplice[list;-1;1]          // → ["c"]
+```
+
+**Changed:** numbers and booleans are inserted as such instead of as text. The array is created when missing, and anything other than an array is an error. The JSON is compact.
 
 <h4 align="center">$arraySlice</h4>
 
@@ -792,7 +881,7 @@ $arrayIncludes[list;"10"]       // → true
 $arrayIncludes[list;{"a":1}]    // → true
 ```
 
-**Changed:** objects compare by content, and long IDs and codes like `007` are matched exactly instead of being read as numbers.
+**Changed:** the value is read with its type, where 2.7.0 always looked for text and 2.7.1 read long IDs and codes like `007` as numbers and missed them. Objects compare by content.
 
 <h4 align="center">$arrayIndexOf</h4>
 
@@ -814,6 +903,25 @@ $arrayIndexOf[list;10]      // → -1
 
 **Changed:** it compares by type, as `$arrayIncludes` does, where the old one always looked for text. Data saved as text earlier needs quotes: `$arrayIndexOf[old;"10"]`.
 
+<h4 align="center">$arrayLastIndexOf</h4>
+
+**`$arrayLastIndexOf[source;value]`** ↺ - returns a number
+
+Where the value last is, compared as in [`$arrayIncludes`](#arrayincludes), or `-1`.
+
+| Argument | Needed | What it is |
+|---|---|---|
+| **`source`** | required | The array, as a variable or JSON. |
+| **`value`** | required | The value to look for. |
+
+```js
+$jsonLoad[list;[5,"5",5\]]
+$arrayLastIndexOf[list;5]      // → 2
+$arrayLastIndexOf[list;"5"]    // → 1
+```
+
+**Changed:** as for [`$arrayIndexOf`](#arrayindexof).
+
 <h4 align="center">$arrayRange</h4>
 
 **`$arrayRange[start;end;step?]`** - returns a JSON array
@@ -831,6 +939,26 @@ $arrayRange[1;5]       // → [1,2,3,4,5]
 $arrayRange[5;1]       // → [5,4,3,2,1]
 $arrayRange[0;10;5]    // → [0,5,10]
 ```
+
+<h4 align="center">$arrayFill</h4>
+
+**`$arrayFill[variable;value]`** ↺ - returns nothing
+
+Sets every element of an array to the value, each element getting its own copy. The value is read as by [`$arrayPushJSON`](#arraypushjson).
+
+| Argument | Needed | What it is |
+|---|---|---|
+| **`variable`** | required | The variable holding the array. |
+| **`value`** | required | The value to fill it with. |
+
+```js
+$arrayCreate[slots;3]
+$arrayFill[slots;{"item":null}]
+$!jsonSet[slots;0;item;sword]
+$jsonGet[slots]    // → [{"item":"sword"},{"item":null},{"item":null}]
+```
+
+**Changed:** every element gets its own copy, where the old one put one and the same object in all of them. Long IDs keep their digits, and anything other than an array is an error.
 
 <h4 align="center">$arrayChunk</h4>
 
@@ -897,6 +1025,24 @@ $jsonLoad[list;[1,2,3,4,5\]]
 $arraySample[list]      // → e.g. 4
 $arraySample[list;2]    // → e.g. [5,1]
 ```
+
+<h4 align="center">$arrayRandomIndex</h4>
+
+**`$arrayRandomIndex[source]`** ↺ - returns a number
+
+A random index of the array. An empty array gives nothing.
+
+| Argument | Needed | What it is |
+|---|---|---|
+| **`source`** | required | The array, as a variable or JSON. |
+
+```js
+$jsonLoad[list;["a","b","c"\]]
+$arrayRandomIndex[list]    // → e.g. 2
+$arrayRandomIndex[[\]]     // →
+```
+
+**Changed:** an empty array gives nothing instead of 0. It reads JSON as well as a variable.
 
 <h4 align="center">$arrayShuffle</h4>
 
@@ -1012,6 +1158,28 @@ The elements of the first array that the second doesn't hold.
 ```js
 $arrayDiff[[1,2,3\];[2,3,4\]]    // → [1]
 ```
+
+<h4 align="center">$arraySort</h4>
+
+**`$arraySort[source;other variable?;sort type?]`** ↺ - returns a JSON array
+
+Sorts an array the way [`$arraySortBy`](#arraysortby) does without a key. Without an other variable, a variable is sorted in place and returned. With one, the sorted copy goes there and the source stays as it is.
+
+| Argument | Needed | What it is |
+|---|---|---|
+| **`source`** | required | The array, as a variable or JSON. |
+| **`other variable`** | optional | A variable to load the result to instead of returning it. |
+| **`sort type`** | optional | `asc`, the default, or `desc`. |
+
+```js
+$jsonLoad[list;[10,9,1\]]
+$arraySort[list]              // → [1,9,10]
+$arraySort[list;top;desc]
+$jsonGet[top]                 // → [10,9,1]
+$arraySort[["b","A","c"\]]    // → ["A","b","c"]
+```
+
+**Changed:** `asc` sorts from the smallest and `desc` from the largest, where the old one had them the other way round. Numbers sort as numbers instead of as text, so `10` comes after `9`. With an other variable, the source is no longer sorted as well, and the copy is separate. It reads JSON as well as a variable.
 
 <h4 align="center">$arraySortBy</h4>
 
@@ -1327,7 +1495,7 @@ $arrayEvery[users;u;$jsonGet[u;xp]>=50]     // → true
 $arrayEvery[users;u;$jsonGet[u;xp]>100]     // → false
 ```
 
-**Changed:** the condition is read as in `$if`. The old one didn't, so `$arrayEvery[list;x;$env[x]>0]` always gave `false`.
+**Changed:** the condition is read as in `$if`. The old one didn't, so `$arrayEvery[list;x;$env[x]>0]` gave `false` for any list that isn't empty.
 
 <h4 align="center">$arrayMap</h4>
 

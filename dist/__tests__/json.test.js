@@ -212,6 +212,20 @@ const harness_1 = require("./support/harness");
         strict_1.default.match(await (0, harness_1.failure)("$jsonKeys[n]", { n: 1 }), /has no keys/);
     });
 });
+(0, node_test_1.describe)("$jsonEntries", () => {
+    const env = { d: { a: 1, inv: { Sword: { count: 2 } } } };
+    (0, node_test_1.it)("lists key and value pairs as JSON, following keys like $env", async () => {
+        strict_1.default.deepEqual(await (0, harness_1.json)("$jsonEntries[d;inv]", env), [["Sword", { count: 2 }]]);
+        strict_1.default.deepEqual(await (0, harness_1.json)(String.raw `$jsonEntries[["x"\]]`), [["0", "x"]]);
+        strict_1.default.deepEqual(await (0, harness_1.json)("$jsonEntries[missing]"), []);
+    });
+    (0, node_test_1.it)("hands $arrayFormat an inventory", async () => {
+        strict_1.default.equal(await (0, harness_1.output)("$arrayFormat[$jsonEntries[d;inv];{0} x{1.count}]", env), "Sword x2");
+    });
+    (0, node_test_1.it)("refuses what has no entries", async () => {
+        strict_1.default.match(await (0, harness_1.failure)("$jsonEntries[d;a]", env), /has no entries/);
+    });
+});
 (0, node_test_1.describe)("$jsonStringify", () => {
     (0, node_test_1.it)("writes compact JSON, or laid out with spaces", async () => {
         const env = { d: { a: [1] } };

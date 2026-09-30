@@ -23,6 +23,21 @@ const harness_1 = require("./support/harness");
         strict_1.default.match(await (0, harness_1.failure)("$objectMerge[cfg;{bad}]", env), /not valid JSON/);
         strict_1.default.equal(env.cfg, undefined);
     });
+    (0, node_test_1.it)("merge several objects in order, the later ones winning", async () => {
+        const env = { extra: { c: 3 } };
+        await (0, harness_1.output)(`$objectMerge[cfg;{"a":1,"b":1};{"b":2};extra]`, env);
+        strict_1.default.deepEqual(env.cfg, { a: 1, b: 2, c: 3 });
+    });
+    (0, node_test_1.it)("merge several objects under keys, a variable before the last read through $env", async () => {
+        const env = { base: { lang: "en" }, extra: { dm: true } };
+        await (0, harness_1.output)(`$objectMerge[user;settings;$env[base];{"lang":"ru"};extra]`, env);
+        strict_1.default.deepEqual(env.user, { settings: { lang: "ru", dm: true } });
+    });
+    (0, node_test_1.it)("take a broken object before the last for an object, not a key", async () => {
+        const env = {};
+        strict_1.default.match(await (0, harness_1.failure)(`$objectMerge[cfg;{a:1};{"b":2}]`, env), /not valid JSON/);
+        strict_1.default.deepEqual(env, {});
+    });
     (0, node_test_1.it)("fill in what is missing or null, keeping the rest", async () => {
         const env = { user: { coins: 50, xp: null, settings: { lang: "ru" } } };
         await (0, harness_1.output)(`$objectDefaults[user;{"coins":0,"xp":0,"level":1,"settings":{"lang":"en","dm":true}}]`, env);

@@ -25,6 +25,27 @@ describe("$objectMerge and $objectDefaults", () => {
         assert.equal(env.cfg, undefined)
     })
 
+    it("merge several objects in order, the later ones winning", async () => {
+        const env: Record<string, unknown> = { extra: { c: 3 } }
+        await output(`$objectMerge[cfg;{"a":1,"b":1};{"b":2};extra]`, env)
+
+        assert.deepEqual(env.cfg, { a: 1, b: 2, c: 3 })
+    })
+
+    it("merge several objects under keys, a variable before the last read through $env", async () => {
+        const env: Record<string, unknown> = { base: { lang: "en" }, extra: { dm: true } }
+        await output(`$objectMerge[user;settings;$env[base];{"lang":"ru"};extra]`, env)
+
+        assert.deepEqual(env.user, { settings: { lang: "ru", dm: true } })
+    })
+
+    it("take a broken object before the last for an object, not a key", async () => {
+        const env: Record<string, unknown> = {}
+
+        assert.match(await failure(`$objectMerge[cfg;{a:1};{"b":2}]`, env), /not valid JSON/)
+        assert.deepEqual(env, {})
+    })
+
     it("fill in what is missing or null, keeping the rest", async () => {
         const env: Record<string, unknown> = { user: { coins: 50, xp: null, settings: { lang: "ru" } } }
         await output(`$objectDefaults[user;{"coins":0,"xp":0,"level":1,"settings":{"lang":"en","dm":true}}]`, env)

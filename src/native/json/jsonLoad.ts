@@ -1,7 +1,6 @@
 import { Arg, NativeFunction } from "@tryforge/forgescript"
 import { Location } from "../../structures/Location"
-import { ok } from "../../functions/result"
-import { looksLikeJSON, parseScalar, readJSON } from "../../functions/value"
+import { readValue } from "../../functions/value"
 
 export default new NativeFunction({
     name: "$jsonLoad",
@@ -11,7 +10,7 @@ export default new NativeFunction({
     brackets: true,
     args: [Arg.requiredString("variable", "The variable to load JSON to"), Arg.requiredString("json", "The JSON data")],
     execute(ctx, [variable, json]) {
-        const parsed = looksLikeJSON(json) ? readJSON(json) : ok(json === "null" ? null : parseScalar(json))
+        const parsed = readValue(json)
         if (!parsed.ok) return this.customError(parsed.reason)
 
         const written = new Location(ctx, variable).write(parsed.value)

@@ -4,55 +4,62 @@ exports.runSmoke = runSmoke;
 const forgescript_1 = require("@tryforge/forgescript");
 const node_fs_1 = require("node:fs");
 const node_path_1 = require("node:path");
-const DEADLINE = 120_000;
-const RETRIES = 6;
+const DEADLINE = 60_000;
+const CLEAN_UP = "$deleteGuildVar[levels;$guildID]$deleteUserVar[profile;$authorID]";
+const paint = (codes) => (text) => (process.env.NO_COLOR ? text : `\u001b[${codes}m${text}\u001b[0m`);
+const green = paint("32");
+const red = paint("31");
+const cyan = paint("36");
+const grey = paint("90");
 function examples() {
     const doc = (0, node_fs_1.readFileSync)((0, node_path_1.join)(__dirname, "..", "..", "..", "functions.md"), "utf8");
     const part = doc.slice(doc.indexOf('<h3 align="center">Examples</h3>'));
     const [leaderboard, profile] = [...part.matchAll(/```js\n([\s\S]*?)```/g)].map((match) => match[1]);
     return { leaderboard, profile };
 }
-const text = (sent) => sent.map((message) => message.content).join("\n");
 function says(expected) {
-    return (sent) => {
-        const got = text(sent);
-        return got === expected ? null : `sent ${JSON.stringify(got)}, expected ${JSON.stringify(expected)}`;
-    };
+    return ({ text }) => text === expected ? null : `gave ${JSON.stringify(text)}, expected ${JSON.stringify(expected)}`;
 }
 function cases(bot) {
     const recipes = examples();
     const board = String.raw `[{"id":"111111111111111111","xp":50},{"id":"${bot.id}","xp":150},{"id":"222222222222222222","xp":300}\]`;
     return [
         {
+            id: "escape-file",
             name: "loads JSON written in a command file, a ] escaped with two backslashes",
             code: `$jsonLoad[config;{"roles":["1","2"\\]}]$jsonGet[config;roles;1]`,
             check: says("2"),
         },
         {
-            name: "loads JSON typed into Discord, a ] escaped with one backslash",
-            typed: String.raw `$jsonLoad[config;{"roles":["1","2"\]}]$jsonGet[config;roles;1]`,
+            id: "escape-typed",
+            name: "loads JSON the way it's typed into Discord, a ] escaped with one backslash",
+            code: String.raw `$jsonLoad[config;{"roles":["1","2"\]}]$jsonGet[config;roles;1]`,
             check: says("2"),
         },
         {
+            id: "id",
             name: "keeps an unquoted ID exact, so Discord finds the user it names",
             code: `$jsonLoad[user;{"id":$authorID}]$username[$jsonGet[user;id]]`,
             check: says(bot.name),
         },
         {
+            id: "guild-ids",
             name: "writes and reads the guild and channel IDs",
             code: `$!jsonSet[here;guild;$guildID]$!jsonSet[here;channel;$channelID]$jsonGet[here;guild]/$jsonGet[here;channel]`,
             check: says(`${bot.guild}/${bot.channel}`),
         },
         {
+            id: "map",
             name: "maps IDs through a function that asks Discord",
             code: `$arrayJoin[$arrayMap[$arrayOf[$authorID;$authorID];u;$username[$jsonGet[u]]]; & ]`,
             check: says(`${bot.name} & ${bot.name}`),
         },
         {
+            id: "embed",
             name: "fills an embed from a sorted list",
             code: String.raw `$jsonLoad[users;${board}]$title[Leaderboard]$description[$arrayFormat[$arraySortBy[users;desc;xp];{#}. <@{id}> - {xp} XP]]`,
-            check: (sent) => {
-                const embed = sent[0]?.embeds[0];
+            check: ({ embeds }) => {
+                const embed = embeds[0];
                 const lines = `1. <@222222222222222222> - 300 XP\n2. <@${bot.id}> - 150 XP\n3. <@111111111111111111> - 50 XP`;
                 if (embed?.title !== "Leaderboard")
                     return `the embed's title is ${JSON.stringify(embed?.title)}`;
@@ -60,27 +67,32 @@ function cases(bot) {
             },
         },
         {
-            name: "turns JavaScript-style JSON typed into Discord into JSON",
-            typed: String.raw `$jsonStringify[{ name: 'Ann', tags: ['a', 'b',\], }]`,
+            id: "loose",
+            name: "turns JavaScript-style JSON, typed the Discord way, into JSON",
+            code: String.raw `$jsonStringify[{ name: 'Ann', tags: ['a', 'b',\], }]`,
             check: says(`{"name":"Ann","tags":["a","b"]}`),
         },
         {
-            name: "reports JSON that doesn't parse in the channel, pointing to $jsonStringify",
+            id: "error",
+            name: "stops on JSON that doesn't parse, pointing to $jsonStringify",
             code: `$jsonLoad[broken;{a:1}]`,
-            check: (sent) => /not valid JSON/.test(text(sent)) && /JavaScript way/.test(text(sent))
+            failing: true,
+            check: ({ errors }) => /not valid JSON/.test(errors[0] ?? "") && /JavaScript way/.test(errors[0] ?? "")
                 ? null
-                : `sent ${JSON.stringify(text(sent))}`,
+                : `failed with ${JSON.stringify(errors)}`,
         },
         {
+            id: "break",
             name: "passes $break on to the $loop around an array loop",
             code: `$loop[3;$arrayForEach[$arrayOf[1;2;3];x;$if[$jsonGet[x]==2;$break]$arrayPush[log;$jsonGet[x]]]$arrayPush[log;after]]$jsonGet[log]`,
             check: says("[1]"),
         },
         {
+            id: "leaderboard",
             name: "runs the leaderboard example from functions.md on ForgeDB",
             code: String.raw `$setGuildVar[levels;${board};$guildID]` + recipes.leaderboard,
-            check: (sent) => {
-                const embed = sent[0]?.embeds[0];
+            check: ({ embeds }) => {
+                const embed = embeds[0];
                 const lines = `**1.** <@222222222222222222> - 300 XP\n**2.** <@${bot.id}> - 150 XP\n**3.** <@111111111111111111> - 50 XP`;
                 if (embed?.title !== "Leaderboard, page 1/1")
                     return `the embed's title is ${JSON.stringify(embed?.title)}`;
@@ -92,20 +104,20 @@ function cases(bot) {
             },
         },
         {
+            id: "profile",
             name: "runs the profile example from functions.md on ForgeDB, twice",
             code: `$setUserVar[profile;{};$authorID]` +
                 recipes.profile +
                 recipes.profile +
                 `$getUserVar[profile;$authorID]`,
             args: ["Magic", "Sword", "v1.2"],
-            check: (sent) => {
-                const got = text(sent);
+            check: ({ text }) => {
                 let profile;
                 try {
-                    profile = JSON.parse(got);
+                    profile = JSON.parse(text);
                 }
                 catch {
-                    return `sent ${JSON.stringify(got)}, not JSON`;
+                    return `gave ${JSON.stringify(text)}, not JSON`;
                 }
                 const expected = JSON.stringify({ "Magic Sword v1.2": { count: 2 } });
                 if (profile.coins !== 500)
@@ -119,63 +131,81 @@ function cases(bot) {
         },
     ];
 }
-async function run(client, channel, probe, test) {
-    let code = test.code ?? "";
-    let obj = probe;
-    if (test.typed !== undefined) {
-        const typed = await channel.send({ content: test.typed, allowedMentions: { parse: [] } });
-        code = (await channel.messages.fetch(typed.id)).content;
-        obj = typed;
+function chosen(all) {
+    const only = process.env.SMOKE_ONLY?.split(",")
+        .map((id) => id.trim())
+        .filter(Boolean);
+    if (!only?.length)
+        return all;
+    const unknown = only.filter((id) => !all.some((test) => test.id === id));
+    if (unknown.length) {
+        console.error(red(`No case called "${unknown.join(", ")}". Pick from: ${all.map((test) => test.id).join(", ")}`));
+        process.exit(1);
     }
-    const before = (await channel.messages.fetch({ limit: 1 })).first()?.id ?? obj.id;
-    await forgescript_1.Interpreter.run(new forgescript_1.Context({
-        client,
-        data: forgescript_1.Compiler.compile(code),
-        command: null,
-        args: test.args ?? [],
-        environment: {},
-        obj,
-    }));
-    for (let attempt = 0;; attempt++) {
-        const fetched = await channel.messages.fetch({ after: before, limit: 20, cache: false });
-        const sent = [...fetched.values()]
-            .filter((message) => message.author.id === client.user.id)
-            .sort((a, b) => a.createdTimestamp - b.createdTimestamp);
-        if (sent.length || attempt === RETRIES)
-            return sent;
-        await new Promise((resolve) => setTimeout(resolve, 500));
+    return all.filter((test) => only.includes(test.id));
+}
+async function execute(client, place, code, args = []) {
+    const errors = [];
+    const error = forgescript_1.Logger.error;
+    forgescript_1.Logger.error = (...parts) => void errors.push(parts.map(String).join(" "));
+    try {
+        const ctx = new forgescript_1.Context({
+            client,
+            data: forgescript_1.Compiler.compile(code),
+            command: null,
+            args,
+            environment: {},
+            obj: place,
+            doNotSend: true,
+            redirectErrorsToConsole: true,
+        });
+        const text = await forgescript_1.Interpreter.run(ctx);
+        return { text: text?.trim() ?? "", embeds: ctx.container.embeds.map((embed) => embed.toJSON()), errors };
+    }
+    finally {
+        forgescript_1.Logger.error = error;
     }
 }
 async function runSmoke(client) {
     const deadline = setTimeout(() => {
-        console.error("ForgeJSON live check: ran out of time");
+        console.error(red("ForgeJSON live check: ran out of time"));
         process.exit(1);
     }, DEADLINE);
     const id = process.env.SMOKE_CHANNEL;
     const channel = id ? await client.channels.fetch(id).catch(() => null) : null;
-    if (!channel?.isSendable() || !("guildId" in channel)) {
-        console.error("ForgeJSON live check: set SMOKE_CHANNEL to a text channel of a guild the bot can send to");
+    if (!channel?.isTextBased() || channel.isDMBased()) {
+        console.error(red("ForgeJSON live check: set SMOKE_CHANNEL to a text channel of a guild the bot is in"));
         process.exit(1);
     }
+    const member = await channel.guild.members.fetchMe().catch(() => null);
+    const place = { author: client.user, member, guild: channel.guild, channel };
     const bot = { id: client.user.id, name: client.user.username, guild: channel.guildId, channel: channel.id };
-    const probe = await channel.send("ForgeJSON live check");
-    let passed = 0;
     const all = cases(bot);
-    for (const test of all) {
+    const tests = chosen(all);
+    console.log(cyan("ForgeJSON live check") + grey(`, ${tests.length} of ${all.length} cases, nothing sent`));
+    const failed = [];
+    for (const test of tests) {
         let problem;
         try {
-            problem = test.check(await run(client, channel, probe, test));
+            const result = await execute(client, place, test.code, test.args);
+            problem = !test.failing && result.errors.length ? `failed: ${result.errors[0]}` : test.check(result);
         }
         catch (err) {
             problem = err instanceof Error ? err.message : String(err);
         }
-        if (!problem)
-            passed++;
-        console.log(`${problem ? "✗" : "✓"} ${test.name}${problem ? `\n    ${problem}` : ""}`);
+        if (problem)
+            failed.push(test.id);
+        console.log(`${problem ? red("FAIL") : green("ok  ")} ${test.name}${problem ? `\n     ${grey(problem)}` : ""}`);
     }
-    console.log(`\n${passed}/${all.length} passed`);
+    const cleaned = await execute(client, place, CLEAN_UP).catch((err) => ({ errors: [String(err)] }));
+    if (cleaned.errors.length)
+        console.error(red(`could not clean up: ${cleaned.errors[0]}`));
+    const passed = tests.length - failed.length;
+    console.log("\n" + (failed.length ? red : green)(`${passed}/${tests.length} passed`));
+    if (failed.length)
+        console.log(grey(`run them again with SMOKE_ONLY=${failed.join(",")}`));
     clearTimeout(deadline);
     await client.destroy();
-    process.exit(passed === all.length ? 0 : 1);
+    process.exit(failed.length ? 1 : 0);
 }
 //# sourceMappingURL=smoke.js.map

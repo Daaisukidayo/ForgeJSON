@@ -29,6 +29,29 @@ describe("$arrayPush and $arrayUnshift", () => {
     })
 })
 
+describe("$arrayPushJSON and $arrayUnshiftJSON", () => {
+    it("add JSON values, creating the array and keeping IDs exact", async () => {
+        const env: Record<string, unknown> = {}
+        await output(
+            String.raw`$arrayPushJSON[list;{"id":123456789012345678};[1,2\]]$arrayUnshiftJSON[list;123456789012345678;null]`,
+            env
+        )
+
+        assert.deepEqual(env.list, ["123456789012345678", null, { id: "123456789012345678" }, [1, 2]])
+    })
+
+    it("refuse JSON that doesn't parse, adding nothing", async () => {
+        const env: Record<string, unknown> = { list: [] }
+
+        assert.match(await failure("$arrayPushJSON[list;1;{a:1}]", env), /not valid JSON/)
+        assert.deepEqual(env.list, [])
+    })
+
+    it("refuse what isn't an array", async () => {
+        assert.match(await failure("$arrayUnshiftJSON[d;1]", { d: {} }), /is an object, not an array/)
+    })
+})
+
 describe("$arrayPop and $arrayShift", () => {
     it("remove and return an element", async () => {
         const env: Record<string, unknown> = { queue: [{ id: 1 }, 2, 3] }
@@ -52,6 +75,34 @@ describe("$arrayRemove", () => {
 
         await output(`$arrayRemove[list;"5"]`, { list })
         assert.deepEqual(list, [6, "x"])
+    })
+
+    it("leaves a missing variable missing", async () => {
+        const env: Record<string, unknown> = {}
+
+        assert.equal(await output("$arrayRemove[list;5]", env), "")
+        assert.deepEqual(env, {})
+    })
+})
+
+describe("$arraySplice", () => {
+    it("removes and inserts, typing what it inserts, and returns what it removed", async () => {
+        const env: Record<string, unknown> = { list: ["a", "b", "c"] }
+
+        assert.equal(await output("$arraySplice[list;1;1;5;true]", env), '["b"]')
+        assert.deepEqual(env.list, ["a", 5, true, "c"])
+    })
+
+    it("counts a negative index from the end, and creates a missing array", async () => {
+        const env: Record<string, unknown> = { list: [1, 2, 3] }
+
+        assert.equal(await output("$arraySplice[list;-1;1]", env), "[3]")
+        assert.equal(await output("$arraySplice[added;0;0;x]", env), "[]")
+        assert.deepEqual(env, { list: [1, 2], added: ["x"] })
+    })
+
+    it("refuses what isn't an array", async () => {
+        assert.match(await failure("$arraySplice[d;0;1]", { d: "text" }), /is a string, not an array/)
     })
 })
 
@@ -93,7 +144,17 @@ describe("$arraySlice, $arrayReverse and $arrayJoin", () => {
     })
 })
 
-describe("$arrayIncludes and $arrayIndexOf", () => {
+describe("$arrayIncludes, $arrayIndexOf and $arrayLastIndexOf", () => {
+    it("find the last match the same way, in JSON too", async () => {
+        const env = { list: [5, "5", 5] }
+
+        assert.equal(
+            await output(`$arrayLastIndexOf[list;5] $arrayLastIndexOf[list;"5"] $arrayLastIndexOf[list;6]`, env),
+            "2 1 -1"
+        )
+        assert.equal(await output(String.raw`$arrayLastIndexOf[[{"a":1},{"a":1}\];{"a":1}]`), "1")
+    })
+
     it("tell a number from the same number as text", async () => {
         const env = { number: [5], text: ["5"] }
 
@@ -192,6 +253,43 @@ describe("$arraySample, $arrayShuffle and $arrayWeightedRandom", () => {
         for (let i = 0; i < 2000; i++) if ((await json("$arrayWeightedRandom[table;chance]", env)).item === "b") b++
 
         assert.ok(b > 1300 && b < 1700, `b came up ${b} times in 2000`)
+    })
+})
+
+describe("$arrayRandomIndex", () => {
+    it("picks an index of the array, and nothing from an empty one", async () => {
+        for (let i = 0; i < 20; i++) {
+            const index = await output("$arrayRandomIndex[list]", { list: ["a", "b", "c"] })
+            assert.ok(["0", "1", "2"].includes(index ?? ""), `picked ${index}`)
+        }
+
+        assert.equal(await output("[$arrayRandomIndex[list]]", { list: [] }), "[]")
+        assert.equal(await output(String.raw`$arrayRandomIndex[["x"\]]`), "0")
+    })
+})
+
+describe("$arrayFill", () => {
+    it("gives every element its own copy of the value", async () => {
+        const env: Record<string, unknown> = {}
+        await output(`$arrayCreate[slots;3]$arrayFill[slots;{"item":null}]$jsonSet[slots;0;item;sword]`, env)
+
+        assert.deepEqual(env.slots, [{ item: "sword" }, { item: null }, { item: null }])
+    })
+
+    it("keeps IDs exact and refuses JSON that doesn't parse", async () => {
+        const env: Record<string, unknown> = { ids: [0, 0] }
+        await output("$arrayFill[ids;123456789012345678]", env)
+
+        assert.deepEqual(env.ids, ["123456789012345678", "123456789012345678"])
+        assert.match(await failure("$arrayFill[ids;{a:1}]", env), /not valid JSON/)
+    })
+
+    it("leaves a missing variable missing, and refuses what isn't an array", async () => {
+        const env: Record<string, unknown> = { text: "x" }
+
+        assert.equal(await output("$arrayFill[slots;0]", env), "")
+        assert.deepEqual(env, { text: "x" })
+        assert.match(await failure("$arrayFill[text;0]", env), /is a string, not an array/)
     })
 })
 

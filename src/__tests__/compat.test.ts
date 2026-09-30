@@ -33,6 +33,14 @@ const REPLACED = [
     "$arrayFindLast",
     "$arrayFindLastIndex",
     "$arrayReduce",
+    "$arrayLastIndexOf",
+    "$arrayPushJSON",
+    "$arrayUnshiftJSON",
+    "$arraySplice",
+    "$arraySort",
+    "$arrayFill",
+    "$arrayRandomIndex",
+    "$jsonEntries",
 ]
 
 describe("ForgeScript's own functions", () => {
@@ -113,6 +121,22 @@ describe("a call written for ForgeScript's own functions", () => {
             await output("$arrayLoad[a;,;1,2,3]$arrayFind[a;x;$env[x]>1] $arrayFindIndex[a;x;$env[x]==3]"),
             "2 2"
         )
+    })
+
+    it("pushes JSON, splices, sorts into another variable and finds the last match", async () => {
+        const env: Record<string, unknown> = {}
+        const said = await output(
+            `$arrayLoad[a;,;3,1,3]$arrayPushJSON[a;{"x":1}]$arraySplice[a;0;1]$arraySort[a;sorted;desc]$arrayLastIndexOf[a;3]`,
+            env
+        )
+
+        assert.equal(said, "[3]1")
+        assert.deepEqual(env.a, [1, 3, { x: 1 }])
+        assert.deepEqual(env.sorted, [{ x: 1 }, 3, 1])
+    })
+
+    it("lists the entries of a variable", async () => {
+        assert.equal(await output("$jsonEntries[o]", { o: { a: 1, b: 2 } }), '[["a",1],["b",2]]')
     })
 
     it("loops with $letSum", async () => {
