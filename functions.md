@@ -68,7 +68,7 @@ Writing creates the missing levels as objects. Nothing is ever written past the 
 
 <h4 align="center">Output</h4>
 
-Objects and arrays come out as compact JSON, and `$jsonStringify[variable;2]` indents them.
+Objects and arrays come out as compact JSON, where ForgeScript's own functions lay them out over lines. `$jsonStringify[variable;2]` indents them.
 
 Functions that only change data output nothing, except `$jsonSet`, which answers `true`, and `$jsonDelete`, which answers whether there was anything to remove.
 
@@ -147,7 +147,7 @@ Loads JSON or a single value to a variable. Text starting with `{` or `[` must b
 | Argument | Needed | What it is |
 |---|---|---|
 | **`variable`** | required | The variable to load to. |
-| **`json`** | required | The JSON or value. Long integers such as IDs keep their digits. |
+| **`json`** | required | The JSON or value. |
 
 ```js
 $jsonLoad[user;{"id":123456789012345678,"name":"Ann"}]
@@ -304,7 +304,7 @@ $jsonKeys[user;stats]                   // → ["xp","level"]
 $arrayJoin[$jsonKeys[user;stats];, ]    // → xp, level
 ```
 
-**Changed:** it follows keys and reads JSON. The JSON is compact, and a missing variable gives `[]` instead of nothing.
+**Changed:** it follows keys and reads JSON. A missing variable gives `[]` instead of nothing.
 
 <h4 align="center">$jsonValues</h4>
 
@@ -342,7 +342,7 @@ $jsonEntries[profile;inventory]                                // → [["Sword",
 $arrayFormat[$jsonEntries[profile;inventory];{0} x{1.count};;;, ]    // → Sword x2, Bow x1
 ```
 
-**Changed:** it follows keys and reads JSON. The JSON is compact, and a missing variable gives `[]` instead of nothing.
+**Changed:** as for [`$jsonKeys`](#jsonkeys).
 
 <h4 align="center">$jsonEquals</h4>
 
@@ -493,13 +493,13 @@ $objectOmit[user;token]    // → {"id":"1","name":"Ann"}
 
 **`$objectMerge[variable;keys...;sources...]`** - returns nothing
 
-Merges objects into the one under the keys, level by level and in order, creating it when missing. Arrays and other values are replaced, not joined.
+Merges objects into the one under the keys, level by level and in order, creating it when missing. Arrays and other values are replaced. To replace a nested object whole, use [`$jsonSet`](#jsonset).
 
 | Argument | Needed | What it is |
 |---|---|---|
 | **`variable`** | required | The variable holding the object. |
 | **`keys`** | any number | The keys to follow. |
-| **`sources`** | at least one, last | The objects to merge in. The last one can be a variable or JSON, and the ones before it are JSON, starting with `{`, so a variable goes there as `$env[name]`. |
+| **`sources`** | at least one, last | The objects to merge in. Only the last can be a variable, so before it write one as `$env[name]`. |
 
 ```js
 $jsonLoad[config;{"colors":{"main":"red","text":"white"},"tags":[1,2\]}]
@@ -585,8 +585,6 @@ $jsonGet[profile]    // → {"coins":50,"xp":0,"inventory":{}}
 | **[`$arrayReduce`](#arrayreduce)** ↺ | value | A value carried through every element. |
 | **[`$arrayForEach`](#arrayforeach)** ↺ | — | Runs code for every element. |
 
-Functions that read an array leave it as it is, except [`$arrayShuffle`](#arrayshuffle), and [`$arrayReverse`](#arrayreverse) and [`$arraySort`](#arraysort) without an other variable.
-
 <h4 align="center">$arrayOf</h4>
 
 **`$arrayOf[values...]`** - returns a JSON array
@@ -649,7 +647,7 @@ For an array deeper inside a variable, use [`$arrayPushAt`](#arraypushat).
 
 **`$arrayPushJSON[variable;values...]`** ↺ - returns nothing
 
-Adds values to the end of an array, as [`$arrayPush`](#arraypush) does, except that an object or array that doesn't parse is an error, and then nothing is added.
+Adds values to the end of an array, as [`$arrayPush`](#arraypush) does, but an object or array that doesn't parse is an error.
 
 | Argument | Needed | What it is |
 |---|---|---|
@@ -736,7 +734,7 @@ $arrayPop[queue]    // → {"id":3}
 $jsonGet[queue]     // → [1,2]
 ```
 
-**Changed:** an object comes back as compact JSON. A variable holding something other than an array is an error.
+**Changed:** a variable holding something other than an array is an error.
 
 <h4 align="center">$arrayShift</h4>
 
@@ -795,7 +793,7 @@ $jsonGet[list]                   // → ["a",5,true,"c"]
 $arraySplice[list;-1;1]          // → ["c"]
 ```
 
-**Changed:** numbers and booleans are inserted as such instead of as text. The array is created when missing, and anything other than an array is an error. The JSON is compact.
+**Changed:** numbers and booleans are inserted as such instead of as text. The array is created when missing, and anything other than an array is an error.
 
 <h4 align="center">$arraySlice</h4>
 
@@ -818,7 +816,7 @@ $arraySlice[list;top;0;3]
 $jsonGet[top]             // → [1,2,3]
 ```
 
-**Changed:** it reads JSON as well as a variable. The JSON is compact.
+**Changed:** it reads JSON as well as a variable.
 
 <h4 align="center">$arrayReverse</h4>
 
@@ -926,7 +924,7 @@ $arrayLastIndexOf[list;"5"]    // → 1
 
 **`$arrayRange[start;end;step?]`** - returns a JSON array
 
-Numbers from `start` to `end`, both included. The step is 1 or -1 by default.
+Numbers from `start` to `end`, both included. Without a step it counts toward `end`, up or down, so give the step when the direction matters: one pointing away from `end` gives `[]`.
 
 | Argument | Needed | What it is |
 |---|---|---|
@@ -938,6 +936,8 @@ Numbers from `start` to `end`, both included. The step is 1 or -1 by default.
 $arrayRange[1;5]       // → [1,2,3,4,5]
 $arrayRange[5;1]       // → [5,4,3,2,1]
 $arrayRange[0;10;5]    // → [0,5,10]
+$arrayRange[-1;0]      // → [-1,0]
+$arrayRange[-1;0;-1]   // → []
 ```
 
 <h4 align="center">$arrayFill</h4>
@@ -1113,7 +1113,7 @@ $arrayUnique[users;;id]      // → [{"id":1,"n":"a"},{"id":2}]
 $arrayUnique[[1,1,2\]]       // → [1,2]
 ```
 
-**Changed:** it can compare by a key, and reads JSON as well as a variable. The JSON is compact.
+**Changed:** it can compare by a key, and reads JSON as well as a variable.
 
 <h4 align="center">$arrayUnion</h4>
 
@@ -1254,7 +1254,7 @@ $arraySum[[0.1,0.2\]]     // → 0.3
 
 **`$arrayAverage[source;key...]`** - returns a number
 
-The average of the numbers under the key, read the way [`$arraySum`](#arraysum) reads them. None at all gives nothing.
+The average of the numbers under the key, read as in [`$arraySum`](#arraysum). None at all gives nothing.
 
 | Argument | Needed | What it is |
 |---|---|---|
@@ -1271,7 +1271,7 @@ $arrayAverage[[\]]            // →
 
 **`$arrayMin[source;key...]`** - returns a number
 
-The smallest number under the key, read the way [`$arraySum`](#arraysum) reads them. None at all gives nothing.
+The smallest number under the key, read as in [`$arraySum`](#arraysum). None at all gives nothing.
 
 | Argument | Needed | What it is |
 |---|---|---|
@@ -1287,7 +1287,7 @@ $arrayMin[items;price]    // → 20
 
 **`$arrayMax[source;key...]`** - returns a number
 
-The largest number under the key, read the way [`$arraySum`](#arraysum) reads them. None at all gives nothing.
+The largest number under the key, read as in [`$arraySum`](#arraysum). None at all gives nothing.
 
 | Argument | Needed | What it is |
 |---|---|---|

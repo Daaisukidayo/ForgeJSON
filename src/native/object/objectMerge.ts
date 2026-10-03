@@ -15,7 +15,7 @@ function splitSources(rest: readonly string[]): [string[], string[]] {
 export default new NativeFunction({
     name: "$objectMerge",
     version: "1.0.0",
-    description: "Merges objects into another",
+    description: "Merges objects into another, level by level",
     unwrap: true,
     brackets: true,
     args: [

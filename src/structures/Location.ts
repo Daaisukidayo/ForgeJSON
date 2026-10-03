@@ -87,8 +87,10 @@ export class Location {
         const { ctx, source: variable, keys } = this
 
         if (!keys.length) {
-            if (readVariable(ctx, variable) === undefined) return ok(false)
-            return ok(ctx.deleteEnvironmentKey(variable))
+            const had = readVariable(ctx, variable) !== undefined
+            ctx.deleteEnvironmentKey(variable)
+
+            return ok(had)
         }
 
         const parent = readIn(readVariable(ctx, variable), keys.slice(0, -1))

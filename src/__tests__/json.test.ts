@@ -184,6 +184,13 @@ describe("$jsonDelete", () => {
             "falsefalsefalse"
         )
     })
+
+    it("removes a variable that holds undefined, still answering false", async () => {
+        const env: Record<string, unknown> = { v: undefined }
+
+        assert.equal(await output("$jsonDelete[v]", env), "false")
+        assert.equal("v" in env, false)
+    })
 })
 
 describe("$jsonType and $jsonSize", () => {

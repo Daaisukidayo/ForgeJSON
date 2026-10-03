@@ -74,9 +74,9 @@ class Location {
             return checked;
         const { ctx, source: variable, keys } = this;
         if (!keys.length) {
-            if ((0, location_1.readVariable)(ctx, variable) === undefined)
-                return (0, result_1.ok)(false);
-            return (0, result_1.ok)(ctx.deleteEnvironmentKey(variable));
+            const had = (0, location_1.readVariable)(ctx, variable) !== undefined;
+            ctx.deleteEnvironmentKey(variable);
+            return (0, result_1.ok)(had);
         }
         const parent = (0, location_1.readIn)((0, location_1.readVariable)(ctx, variable), keys.slice(0, -1));
         const key = keys[keys.length - 1];

@@ -28,11 +28,17 @@ function looksLikeJSON(text) {
 }
 function parseJSON(text) {
     try {
-        return (0, result_1.ok)(LONG_DIGITS.test(text) ? JSON.parse(text, keepLongIntegers) : JSON.parse(text));
+        const value = JSON.parse(text);
+        return (0, result_1.ok)(LONG_DIGITS.test(text) && hasUnsafeInteger(value) ? JSON.parse(text, keepLongIntegers) : value);
     }
     catch (err) {
         return (0, result_1.fail)(err instanceof Error ? err.message : String(err));
     }
+}
+function hasUnsafeInteger(value) {
+    if (typeof value === "number")
+        return Number.isInteger(value) && !Number.isSafeInteger(value);
+    return typeof value === "object" && value !== null && Object.values(value).some(hasUnsafeInteger);
 }
 function keepLongIntegers(_key, value, context) {
     if (typeof value === "number" && !Number.isSafeInteger(value) && context?.source && loose_1.INTEGER.test(context.source)) {

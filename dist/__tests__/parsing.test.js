@@ -57,6 +57,19 @@ const value_1 = require("../functions/value");
         strict_1.default.equal(parsed.ok, true);
         strict_1.default.deepEqual(parsed.ok && parsed.value, { id: "123456789012345678", small: 42, big: 1e21 });
     });
+    (0, node_test_1.it)("leaves long digits inside text as they are, and still keeps a long integer next to them", () => {
+        const text = '{"icon":"<:a:1291430288529952911>","id":1234567890123456789,"n":5}';
+        const parsed = (0, value_1.parseJSON)(text);
+        strict_1.default.deepEqual((0, value_1.parseJSON)('{"icon":"<:a:1291430288529952911>","n":5}'), {
+            ok: true,
+            value: { icon: "<:a:1291430288529952911>", n: 5 },
+        });
+        strict_1.default.deepEqual(parsed.ok && parsed.value, {
+            icon: "<:a:1291430288529952911>",
+            id: "1234567890123456789",
+            n: 5,
+        });
+    });
     (0, node_test_1.it)("names the backslash, in words, when an argument was cut at a bracket", () => {
         const read = (0, value_1.readJSON)('{"a":[1,2');
         const reason = !read.ok ? read.reason : "";

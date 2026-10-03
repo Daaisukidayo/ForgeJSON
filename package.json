@@ -1,6 +1,6 @@
 {
   "name": "forge.json",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Better and new $json and $array functions for ForgeScript.",
   "main": "dist/index.js",
   "files": [

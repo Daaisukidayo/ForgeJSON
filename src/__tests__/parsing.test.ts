@@ -63,6 +63,21 @@ describe("parsed JSON", () => {
         assert.deepEqual(parsed.ok && parsed.value, { id: "123456789012345678", small: 42, big: 1e21 })
     })
 
+    it("leaves long digits inside text as they are, and still keeps a long integer next to them", () => {
+        const text = '{"icon":"<:a:1291430288529952911>","id":1234567890123456789,"n":5}'
+        const parsed = parseJSON(text)
+
+        assert.deepEqual(parseJSON('{"icon":"<:a:1291430288529952911>","n":5}'), {
+            ok: true,
+            value: { icon: "<:a:1291430288529952911>", n: 5 },
+        })
+        assert.deepEqual(parsed.ok && parsed.value, {
+            icon: "<:a:1291430288529952911>",
+            id: "1234567890123456789",
+            n: 5,
+        })
+    })
+
     it("names the backslash, in words, when an argument was cut at a bracket", () => {
         const read = readJSON('{"a":[1,2')
         const reason = !read.ok ? read.reason : ""

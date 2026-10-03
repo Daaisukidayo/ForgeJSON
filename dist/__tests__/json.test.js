@@ -131,6 +131,11 @@ const harness_1 = require("./support/harness");
     (0, node_test_1.it)("answers false when there was nothing to remove", async () => {
         strict_1.default.equal(await (0, harness_1.output)("$jsonDelete[d;x]$jsonDelete[list;9]$jsonDelete[nothing]", { d: {}, list: [] }), "falsefalsefalse");
     });
+    (0, node_test_1.it)("removes a variable that holds undefined, still answering false", async () => {
+        const env = { v: undefined };
+        strict_1.default.equal(await (0, harness_1.output)("$jsonDelete[v]", env), "false");
+        strict_1.default.equal("v" in env, false);
+    });
 });
 (0, node_test_1.describe)("$jsonType and $jsonSize", () => {
     const env = { d: { o: { a: 1 }, a: [1, 2, 3], s: "hello", n: 1, b: false, z: null } };

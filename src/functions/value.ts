@@ -13,10 +13,17 @@ export function looksLikeJSON(text: string) {
 
 export function parseJSON(text: string): Result<unknown> {
     try {
-        return ok(LONG_DIGITS.test(text) ? JSON.parse(text, keepLongIntegers) : JSON.parse(text))
+        const value: unknown = JSON.parse(text)
+        return ok(LONG_DIGITS.test(text) && hasUnsafeInteger(value) ? JSON.parse(text, keepLongIntegers) : value)
     } catch (err) {
         return fail(err instanceof Error ? err.message : String(err))
     }
+}
+
+function hasUnsafeInteger(value: unknown): boolean {
+    if (typeof value === "number") return Number.isInteger(value) && !Number.isSafeInteger(value)
+
+    return typeof value === "object" && value !== null && Object.values(value).some(hasUnsafeInteger)
 }
 
 function keepLongIntegers(_key: string, value: unknown, context?: { source?: string }) {
